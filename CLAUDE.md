@@ -27,7 +27,7 @@ To add a plugin, append `set -g @plugin 'owner/repo'` before the `run '~/.config
 
 - `tmux-plugins/tmux-sensible` — sane defaults
 - `christoomey/vim-tmux-navigator` — seamless vim/tmux pane navigation
-- `dreamsofcode-io/catppuccin-tmux` — Catppuccin theme (installed at `plugins/tmux/`)
+- `janoamaral/tokyo-night-tmux` — Tokyo Night theme
 
 ## Applying Changes
 
