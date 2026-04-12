@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Re-apply claude layout for a window. If managed and <4 panes, pull one
 # from the next chain window (join-pane). The window-layout-changed hook
 # then fires on that next window, cascading naturally.
@@ -13,22 +13,16 @@
 
 set -u
 
-target="${1:-}"
-[ -z "$target" ] && target=$(tmux display -p '#{window_id}')
+target="${1:-$(tmux display -p '#{window_id}')}"
 
-lockfile="/tmp/tmux-relayout-$(id -u)-${target//[@%]/_}.lock"
+managed=$(tmux show-window-options -t "$target" -v @claude-managed 2>/dev/null) || exit 0
+[ "$managed" = "1" ] || exit 0
+
+lockfile="/tmp/tmux-relayout-$(id -u)-$(printf '%s' "$target" | tr -c 'a-zA-Z0-9' _).lock"
 exec 9>"$lockfile"
 flock -n 9 || exit 0
 
-if ! tmux list-windows -a -F '#{window_id}' 2>/dev/null | grep -qx "$target"; then
-    exit 0
-fi
-
-managed=$(tmux show-window-options -t "$target" -v @claude-managed 2>/dev/null || true)
-[ "$managed" = "1" ] || exit 0
-
-count=$(tmux list-panes -t "$target" 2>/dev/null | wc -l)
-[ "$count" -eq 0 ] && exit 0
+count=$(tmux display -p -t "$target" '#{window_panes}' 2>/dev/null) || exit 0
 
 if [ "$count" -lt 4 ]; then
     cur_idx=$(tmux display -p -t "$target" '#{window_index}')
@@ -41,7 +35,7 @@ if [ "$count" -lt 4 ]; then
         target_pane=$(tmux list-panes -t "$target" -F '#{pane_id}' 2>/dev/null | head -1)
         if [ -n "$first_pane" ] && [ -n "$target_pane" ]; then
             if tmux join-pane -s "$first_pane" -t "$target_pane" 2>/dev/null; then
-                count=$(tmux list-panes -t "$target" 2>/dev/null | wc -l)
+                count=$(tmux display -p -t "$target" '#{window_panes}' 2>/dev/null) || exit 0
                 tmux set-window-option -t "$target" @claude-last-layout "" 2>/dev/null || true
             fi
         fi
