@@ -6,7 +6,7 @@
 set -u
 
 dir=""
-cmd="claude"
+cmd='claude /model\ opus'
 
 while getopts "c:C:" opt; do
     case "$opt" in

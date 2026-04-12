@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
 # fzf branch picker. Runs inside tmux display-popup.
-# Type to search, Enter to select, ctrl-x to delete. If the typed name
-# doesn't match an existing branch it is created automatically.
-#
-# Usage: branch-picker.sh [-S]
-#   -S  open a shell instead of claude
+# Type to search, Enter to open shell, alt-a to open claude, ctrl-x to
+# delete. If the typed name doesn't match an existing branch it is
+# created automatically.
 
 set -u
-
-shell_mode=""
-while getopts "S" opt; do
-    case "$opt" in
-        S) shell_mode=1 ;;
-        *) ;;
-    esac
-done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -48,11 +38,11 @@ while :; do
     out=$(printf '%s\n' "$branches" | fzf \
         --layout=reverse \
         --print-query \
-        --expect=ctrl-x \
+        --expect=ctrl-x,alt-a \
         --bind 'ctrl-d:half-page-down,ctrl-u:half-page-up' \
         --color="$TN_COLORS" \
         --prompt='> ' \
-        --header='enter:select  ctrl-x:del' \
+        --header='enter:shell  alt-a:claude  ctrl-x:del' \
         || true)
 
     [ -z "$out" ] && exit 0
@@ -76,11 +66,12 @@ while :; do
         "")
             branch="${match:-$query}"
             [ -z "$branch" ] && exit 0
-            if [ -n "$shell_mode" ]; then
-                exec "$SCRIPT_DIR/claude-worktree.sh" -S "$branch"
-            else
-                exec "$SCRIPT_DIR/claude-worktree.sh" "$branch"
-            fi
+            exec "$SCRIPT_DIR/claude-worktree.sh" -S "$branch"
+            ;;
+        alt-a)
+            branch="${match:-$query}"
+            [ -z "$branch" ] && exit 0
+            exec "$SCRIPT_DIR/claude-worktree.sh" "$branch"
             ;;
     esac
 done
