@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# fzf branch picker with vim-modal navigation. Runs inside tmux display-popup.
+# fzf branch picker. Runs inside tmux display-popup.
+# Type to search, Enter to select, ctrl-x to delete. If the typed name
+# doesn't match an existing branch it is created automatically.
 #
-# Nav mode (default): j/k navigate, l/Enter select, h/q exit, / or i to search
-# Search mode: type to filter, Esc back to nav, Enter select
-# New branch: search for a non-existing name, press Enter — query becomes branch name.
+# Usage: branch-picker.sh [-S]
+#   -S  open a shell instead of claude
 
 set -u
 
@@ -29,36 +30,57 @@ repo_root=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || {
     exit 1
 }
 
-branches=$(git -C "$repo_root" for-each-ref --format='%(refname:short)' refs/heads/ --sort=-committerdate)
+worktree_for_branch() {
+    git -C "$repo_root" worktree list --porcelain | awk -v b="$1" '
+        /^worktree / { w = substr($0, 10) }
+        /^branch / {
+            br = substr($0, 8)
+            sub(/^refs\/heads\//, "", br)
+            if (br == b) { print w; exit }
+        }
+    '
+}
 
-out=$(printf '%s\n' "$branches" | fzf \
-    --layout=reverse \
-    --print-query \
-    --disabled \
-    --bind 'j:down,k:up,l:accept,h:abort,q:abort' \
-    --bind '/:enable-search,i:enable-search' \
-    --bind 'esc:disable-search' \
-    --bind 'ctrl-d:half-page-down,ctrl-u:half-page-up' \
-    --color="$TN_COLORS" \
-    --prompt='> ' \
-    --header='j/k:nav  l/enter:select  /,i:search  esc:nav  h/q:quit' \
-    || true)
+while :; do
+    branches=$(git -C "$repo_root" for-each-ref \
+        --format='%(refname:short)' refs/heads/ --sort=-committerdate)
 
-[ -z "$out" ] && exit 0
+    out=$(printf '%s\n' "$branches" | fzf \
+        --layout=reverse \
+        --print-query \
+        --expect=ctrl-x \
+        --bind 'ctrl-d:half-page-down,ctrl-u:half-page-up' \
+        --color="$TN_COLORS" \
+        --prompt='> ' \
+        --header='enter:select  ctrl-x:del' \
+        || true)
 
-query=$(printf '%s\n' "$out" | sed -n '1p')
-match=$(printf '%s\n' "$out" | sed -n '2p')
+    [ -z "$out" ] && exit 0
 
-if [ -n "$match" ]; then
-    branch="$match"
-elif [ -n "$query" ]; then
-    branch="$query"
-else
-    exit 0
-fi
+    query=$(printf '%s\n' "$out" | sed -n '1p')
+    key=$(printf '%s\n' "$out" | sed -n '2p')
+    match=$(printf '%s\n' "$out" | sed -n '3p')
 
-if [ -n "$shell_mode" ]; then
-    exec "$SCRIPT_DIR/claude-worktree.sh" -S "$branch"
-else
-    exec "$SCRIPT_DIR/claude-worktree.sh" "$branch"
-fi
+    case "$key" in
+        ctrl-x)
+            [ -z "$match" ] && continue
+            printf "delete branch '%s' and its worktree? [y/N] " "$match"
+            read -r confirm
+            [ "$confirm" = "y" ] || continue
+            wt=$(worktree_for_branch "$match")
+            if [ -n "$wt" ]; then
+                git -C "$repo_root" worktree remove --force "$wt" 2>&1 || true
+            fi
+            git -C "$repo_root" branch -D "$match" 2>&1 || true
+            ;;
+        "")
+            branch="${match:-$query}"
+            [ -z "$branch" ] && exit 0
+            if [ -n "$shell_mode" ]; then
+                exec "$SCRIPT_DIR/claude-worktree.sh" -S "$branch"
+            else
+                exec "$SCRIPT_DIR/claude-worktree.sh" "$branch"
+            fi
+            ;;
+    esac
+done
