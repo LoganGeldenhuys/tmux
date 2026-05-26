@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fzf directory picker. Runs inside tmux display-popup.
 # Navigate with alt-h (up) / alt-l (into), open shell with Enter,
-# open claude with alt-a.
+# open the AI agent (controlled by $AI_AGENT) with alt-a.
 
 set -u
 
@@ -27,6 +27,9 @@ list_dirs() {
 }
 
 while :; do
+    agent="${AI_AGENT:-$(tmux show-environment -g AI_AGENT 2>/dev/null | sed 's/^AI_AGENT=//;t;d')}"
+    agent="${agent:-opencode}"
+
     out=$(list_dirs "$root" | fzf \
         --layout=reverse \
         --print-query \
@@ -34,7 +37,7 @@ while :; do
         --bind 'ctrl-d:half-page-down,ctrl-u:half-page-up,alt-j:down,alt-k:up' \
         --color="$TN_COLORS" \
         --prompt="${root}/ > " \
-        --header='alt-h:up  alt-l:into  enter:shell  alt-a:claude' \
+        --header="alt-h:up  alt-l:into  enter:shell  alt-a:${agent}" \
         || true)
 
     [ -z "$out" ] && exit 0
@@ -51,11 +54,11 @@ while :; do
             ;;
         alt-a)
             [ -z "$match" ] && exit 0
-            exec "$SCRIPT_DIR/claude-pane.sh" -c "$match"
+            exec "$SCRIPT_DIR/ai-pane.sh" -c "$match"
             ;;
         "")
             [ -z "$match" ] && exit 0
-            exec "$SCRIPT_DIR/claude-pane.sh" -c "$match" -C ''
+            exec "$SCRIPT_DIR/ai-pane.sh" -c "$match" -C ''
             ;;
     esac
 done

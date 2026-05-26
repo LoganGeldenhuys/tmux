@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
-# Add a new claude pane. Starts from the current window, walks the claude
+# Add a new AI pane. Starts from the current window, walks the managed
 # chain, and overflows into a new adjacent window at >4 panes.
-# Usage: claude-pane.sh [-c dir] [-C cmd]
+# Dispatches on $AI_AGENT (default: opencode). Override via env or -C.
+# Usage: ai-pane.sh [-c dir] [-C cmd]
 
 set -u
 
+# Resolve agent: env first, then tmux global env, then default.
+agent="${AI_AGENT:-$(tmux show-environment -g AI_AGENT 2>/dev/null | sed 's/^AI_AGENT=//;t;d')}"
+agent="${agent:-opencode}"
+
+case "$agent" in
+    opencode) default_cmd='opencode' ;;
+    claude)   default_cmd='claude /model\ opus' ;;
+    *)        default_cmd="$agent" ;;
+esac
+
 dir=""
-cmd='claude /model\ opus'
+cmd="$default_cmd"
 
 while getopts "c:C:" opt; do
     case "$opt" in

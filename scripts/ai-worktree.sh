@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Ensure a sibling worktree for the given branch, then open a pane there.
-# Usage: claude-worktree.sh [-S] <branch>
-#   -S  open a shell instead of claude
+# Usage: ai-worktree.sh [-S] <branch>
+#   -S  open a shell instead of the AI agent
 
 set -u
 
@@ -55,7 +55,7 @@ if [ ! -d "$worktree_path" ]; then
 fi
 
 if [ -n "$shell_mode" ]; then
-    exec "$SCRIPT_DIR/claude-pane.sh" -c "$worktree_path" -C ''
+    exec "$SCRIPT_DIR/ai-pane.sh" -c "$worktree_path" -C ''
 else
-    exec "$SCRIPT_DIR/claude-pane.sh" -c "$worktree_path"
+    exec "$SCRIPT_DIR/ai-pane.sh" -c "$worktree_path"
 fi

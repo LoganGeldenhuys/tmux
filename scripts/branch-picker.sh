@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # fzf branch picker. Runs inside tmux display-popup.
-# Type to search, Enter to open shell, alt-a to open claude, ctrl-x to
-# delete. If the typed name doesn't match an existing branch it is
-# created automatically.
+# Type to search, Enter to open shell, alt-a to open the AI agent
+# (controlled by $AI_AGENT), ctrl-x to delete. If the typed name
+# doesn't match an existing branch it is created automatically.
 
 set -u
 
@@ -35,6 +35,9 @@ while :; do
     branches=$(git -C "$repo_root" for-each-ref \
         --format='%(refname:short)' refs/heads/ --sort=-committerdate)
 
+    agent="${AI_AGENT:-$(tmux show-environment -g AI_AGENT 2>/dev/null | sed 's/^AI_AGENT=//;t;d')}"
+    agent="${agent:-opencode}"
+
     out=$(printf '%s\n' "$branches" | fzf \
         --layout=reverse \
         --print-query \
@@ -42,7 +45,7 @@ while :; do
         --bind 'ctrl-d:half-page-down,ctrl-u:half-page-up' \
         --color="$TN_COLORS" \
         --prompt='> ' \
-        --header='enter:shell  alt-a:claude  ctrl-x:del' \
+        --header="enter:shell  alt-a:${agent}  ctrl-x:del" \
         || true)
 
     [ -z "$out" ] && exit 0
@@ -66,12 +69,12 @@ while :; do
         "")
             branch="${match:-$query}"
             [ -z "$branch" ] && exit 0
-            exec "$SCRIPT_DIR/claude-worktree.sh" -S "$branch"
+            exec "$SCRIPT_DIR/ai-worktree.sh" -S "$branch"
             ;;
         alt-a)
             branch="${match:-$query}"
             [ -z "$branch" ] && exit 0
-            exec "$SCRIPT_DIR/claude-worktree.sh" "$branch"
+            exec "$SCRIPT_DIR/ai-worktree.sh" "$branch"
             ;;
     esac
 done
