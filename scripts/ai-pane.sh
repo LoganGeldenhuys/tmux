@@ -10,10 +10,13 @@ set -u
 agent="${AI_AGENT:-$(tmux show-environment -g AI_AGENT 2>/dev/null | sed 's/^AI_AGENT=//;t;d')}"
 agent="${agent:-opencode}"
 
+# Wrap in `bash -lc` so the new pane sources .bashrc (via .profile) and
+# inherits a fresh PATH. tmux's server env can otherwise be stale relative
+# to the user's shell if bashrc was edited after tmux started.
 case "$agent" in
-    opencode) default_cmd='opencode' ;;
-    claude)   default_cmd='claude /model\ opus' ;;
-    *)        default_cmd="$agent" ;;
+    opencode) default_cmd='bash -lc opencode' ;;
+    claude)   default_cmd="bash -lc 'claude /model\\ opus'" ;;
+    *)        default_cmd="bash -lc $(printf %q "$agent")" ;;
 esac
 
 dir=""
